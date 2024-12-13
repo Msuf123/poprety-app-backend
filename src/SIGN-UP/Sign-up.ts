@@ -1,29 +1,40 @@
 import { Router, Request, Response } from 'express';
-import { verifyToken } from '../CustomFunctions/JWtToken/JWtToken';
+import { createToken, verifyToken } from '../CustomFunctions/JWtToken/JWtToken';
 import checkIfUserNameIsUnique from '../CustomFunctions/UniqueName/uniqueName';
 import { hashPassword } from '../CustomFunctions/Hashing/Hashing';
 import InsertUser from '../CustomFunctions/VerfiyUser/InsertUser';
-
+import verifyUser from "./../CustomFunctions/VerfiyUser/VerifyUser"
 const signUp = Router();
+import getUser from './../CustomFunctions/VerfiyUser/getUserInfo'
 signUp.use((req:any,res,next)=>{
  
-  const token = req.headers['authorization'] && req.headers['authorization'].split(' ')[1]; // Splitting to get the token
+  const token = req.headers['authorization'] && req.headers['authorization'].split(' ')[1];
   req.token=token
   next()
 })
-signUp.get("/isLoggedIN",(req:any,res,next)=>{
-    const token='kk'
+signUp.get("/isLoggedIN",async (req:any,res,next)=>{
+    const token=req.token as string
+    console.log(token)
+    const username=verifyToken(token)
+    console.log(username)
     if(verifyToken(token)){
-        res.send('okay')
+      res.send(await getUser(username.email))
     }
     else{
       res.send('unauth')
     }
 })
-signUp.post("/login",(req,res,next)=>{
+signUp.post("/login",async (req,res,next)=>{
   const { username, pass } = req.body
-  console.log(username, pass)
-  res.send('no')
+  console.log(username,pass)
+  const token=await verifyUser(username,pass)
+  if(token){
+    console.log("Genrated token is ",token)
+  res.send(token)
+  }
+  else{
+  res.send('nookay')
+  }
 })
 signUp.post('/signup',async (req: Request, res: Response,next) => {
     const {username,pass,phone}=req.body
@@ -31,20 +42,21 @@ signUp.post('/signup',async (req: Request, res: Response,next) => {
     if(isOkay){
       const hasedPassword=await hashPassword(pass)
       if(hasedPassword){
-        const isnertedUser=await InsertUser(username,pass,phone)
+        const isnertedUser=await InsertUser(username,hasedPassword,phone)
         if(isnertedUser){
-          res.send('okay')
-          next('errr')
+          res.send(createToken(username))
+          
         }
       }else{
-        console.log('error genrasting passwodr')
-        next('error')
+       res.send('error')
       }
     }
     else{
-        next('error')
+      res.send('usernameTaken')
     }
    
 });
+signUp.post("/wirteProp",async(req,res,next)=>{
 
+})
 export default signUp;
